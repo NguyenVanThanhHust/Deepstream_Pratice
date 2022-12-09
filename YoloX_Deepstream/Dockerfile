@@ -1,0 +1,72 @@
+# Replace with required container type e.g. base, devel etc in the following line
+FROM nvcr.io/nvidia/deepstream:6.0.1-devel
+
+ENV NVIDIA_DRIVER_CAPABILITIES $NVIDIA_DRIVER_CAPABILITIES,video
+
+RUN rm /etc/apt/sources.list.d/cuda.list
+RUN apt-key del 7fa2af80
+
+RUN cat /etc/lsb-release
+RUN apt-key adv --fetch-keys http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/3bf863cc.pub
+
+ARG DEBIAN_FRONTEND=noninteractive
+
+# To get video driver libraries at runtime (libnvidia-encode.so/libnvcuvid.so)
+ENV NVIDIA_DRIVER_CAPABILITIES $NVIDIA_DRIVER_CAPABILITIES,video
+
+WORKDIR /opt/
+
+RUN apt-get update -qq  && apt-get install -y autoconf \
+    automake \
+    build-essential \
+    git-core \
+    libass-dev \
+    libfreetype6-dev \
+    libgnutls28-dev \
+    libmp3lame-dev \
+    libsdl2-dev \
+    libtool \
+    libva-dev \
+    libvdpau-dev \
+    libvorbis-dev \
+    libxcb1-dev \
+    libxcb-shm0-dev \
+    libxcb-xfixes0-dev \
+    meson \
+    ninja-build \
+    pkg-config \
+    texinfo \
+    wget \
+    yasm \
+    zlib1g-dev
+
+RUN apt-get install -y libavdevice-dev libavcodec-dev libavformat-dev libavutil-dev libswscale-dev libavresample-dev libavdevice-dev
+
+RUN apt-get install -y cmake libc6 libc6-dev unzip libnuma1 libnuma-dev
+
+RUN \
+   echo 'alias python="/usr/bin/python3"' >> ~/.bashrc && \
+   echo 'alias pip="/usr/bin/python3 -m pip"' >> ~/.bashrc && \
+   /bin/bash -c  "source ~/.bashrc"
+
+WORKDIR /workspace/
+ARG USERNAME=thanhnv
+ARG USER_UID=1000
+ARG USER_GID=$USER_UID
+
+# Create the user
+RUN groupadd --gid $USER_GID $USERNAME \
+    && useradd --uid $USER_UID --gid $USER_GID -m $USERNAME \
+    #
+    # [Optional] Add sudo support. Omit if you don't need to install software after connecting.
+    && apt-get update \
+    && apt-get install -y sudo \
+    && echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME \
+    && chmod 0440 /etc/sudoers.d/$USERNAME
+
+# ********************************************************
+# * Anything else you want to do like clean up goes here *
+# ********************************************************
+
+# [Optional] Set the default user. Omit if you want to keep the default as root.
+USER $USERNAME
