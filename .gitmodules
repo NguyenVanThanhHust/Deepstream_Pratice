@@ -1,0 +1,3 @@
+[submodule "deepstream_dockers"]
+	path = deepstream_dockers
+	url = git@github.com:NguyenVanThanhHust/deepstream_dockers.git
