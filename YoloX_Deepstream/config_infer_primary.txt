@@ -6,7 +6,7 @@ net-scale-factor=1.0
 # 0:RGB 1:BGR
 model-color-format=0
 
-model-engine-file=./model_trt.engine
+model-engine-file=model_trt.engine
 
 labelfile-path=labels.txt
 num-detected-classes=80

@@ -3,7 +3,7 @@ ifeq ($(CUDA_VER),)
   $(error "CUDA_VER is not set")
 endif
 
-APP:= deepstream-test1-app
+APP:= deepstream-test-app
 
 TARGET_DEVICE = $(shell gcc -dumpmachine | cut -f1 -d -)
 
@@ -44,7 +44,6 @@ LIBS+= -lnvinfer_plugin -lnvinfer -lnvparsers -L/usr/local/cuda-$(CUDA_VER)/lib6
 		-lnvdsgst_meta -lnvds_meta -lnvdsgst_helper \
         -lnvdsgst_smartrecord -lnvds_utils -lnvds_msgbroker -lm -lyaml-cpp \
     	-lcuda -lgstrtspserver-1.0 
-
 all: $(APP)
 
 %.o: %.c $(INCS) Makefile

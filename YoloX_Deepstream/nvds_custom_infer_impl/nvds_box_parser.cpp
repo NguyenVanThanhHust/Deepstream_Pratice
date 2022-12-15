@@ -27,8 +27,8 @@
 
 
 #define DEVICE 0  // GPU id
-#define NMS_THRESH 0.65
-#define BBOX_CONF_THRESH 0.3
+#define NMS_THRESH 0.45
+#define BBOX_CONF_THRESH 0.25
 
 
 static const int INPUT_W = 640;
@@ -36,6 +36,9 @@ static const int INPUT_H = 640;
 const char* INPUT_BLOB_NAME = "images";
 const char* OUTPUT_BLOB_NAME = "output";
 
+using std::endl;
+using std::cout;
+using std::cin;
 
 
 struct Object
@@ -207,7 +210,11 @@ static void decode_outputs(float* prob, std::vector<Object>& objects, float scal
         generate_grids_and_stride(INPUT_W, strides, grid_strides);
         generate_yolox_proposals(grid_strides, prob,  BBOX_CONF_THRESH, proposals);
         // std::cout << "num of boxes before nms: " << proposals.size() << std::endl;
-
+        // for (auto object: proposals)
+        // {
+        //     std::cout<<object.label<<" "<< object.prob << "  "<< object.rect<<std::endl;
+        // }
+        
         qsort_descent_inplace(proposals);
 
         std::vector<int> picked;
@@ -215,8 +222,6 @@ static void decode_outputs(float* prob, std::vector<Object>& objects, float scal
 
 
         int count = picked.size();
-
-        // std::cout << "num of boxes: " << count << std::endl;
 
         objects.resize(count);
         for (int i = 0; i < count; i++)
@@ -243,6 +248,7 @@ static void decode_outputs(float* prob, std::vector<Object>& objects, float scal
             objects[i].rect.y = y0;
             objects[i].rect.width = x1 - x0;
             objects[i].rect.height = y1 - y0;
+            // std::cout<<"x0: " << x0 << " y0: " << y0 << " x1: " << x1 << " y1: "<< y1<<std::endl;
         }
 }
 
@@ -255,9 +261,12 @@ static bool NvDsInferParseYolox(
     std::vector<NvDsInferParseObjectInfo>& objectList)
 {
     float* prob = (float*)outputLayersInfo[0].buffer;
+    
+    cout<<"Output layer info: "<< outputLayersInfo.size()<<endl;
+    cout<<"Prob size: "<< sizeof(prob)<<endl;
     std::vector<Object> objects;
-    int img_w = 1920;
-    int img_h = 1080;
+    int img_w = 1080;
+    int img_h = 720;
     float scale = std::min(INPUT_W / (img_w*1.0), INPUT_H / (img_h*1.0));
     decode_outputs(prob, objects, scale, img_w, img_h);
     

@@ -4,6 +4,9 @@ deepstream-app
 # data
 sample_1080p_h264.mp4
 *.mp4
+*.h264
+DS_60
+.vscode/
 
 # model
 *.engine
