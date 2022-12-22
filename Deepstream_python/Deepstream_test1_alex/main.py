@@ -27,6 +27,8 @@ from common.is_aarch_64 import is_aarch64
 from common.bus_call import bus_call
 
 import pyds
+import ctypes
+import numpy as np
 
 PGIE_CLASS_ID_VEHICLE = 0
 PGIE_CLASS_ID_BICYCLE = 1
@@ -143,26 +145,47 @@ def pgie_src_pad_buffer_probe(pad, info, u_data):
         except StopIteration:
             break
 
-        frame_number=frame_meta.frame_num
-        num_rects = frame_meta.num_obj_meta
-        l_obj=frame_meta.obj_meta_list
-        while l_obj is not None:
+        l_user = frame_meta.frame_user_meta_list
+        while l_user is not None:
             try:
                 # Casting l_obj.data to pyds.NvDsObjectMeta
                 #obj_meta=pyds.glist_get_nvds_object_meta(l_obj.data)
-                obj_meta=pyds.NvDsObjectMeta.cast(l_obj.data)
+                user_meta = pyds.NvDsUserMeta.cast(l_user.data)
+                print('in here')
+                print(100*"---")
             except StopIteration:
                 break
-            print(obj_meta.rect_params)
-            obj_meta.rect_params.border_color.set(0.0, 0.0, 1.0, 0.0)
+            if (
+                    user_meta.base_meta.meta_type
+                    != pyds.NvDsMetaType.NVDSINFER_TENSOR_OUTPUT_META
+            ):
+                continue
+
+            tensor_meta = pyds.NvDsInferTensorMeta.cast(user_meta.user_meta_data)
+
+            # Boxes in the tensor meta should be in network resolution which is
+            # found in tensor_meta.network_info. Use this info to scale boxes to
+            # the input frame resolution.
+            layers_info = []
+
+            for i in range(tensor_meta.num_output_layers):
+                layer = pyds.get_nvds_LayerInfo(tensor_meta, i)
+                layers_info.append(layer)
+                data = layer.buffer
+                layer_name = layer.layerName
+                # https://forums.developer.nvidia.com/t/urgent-how-to-convert-deepstream-tensor-to-numpy/128601/9
+                box_ptr = ctypes.cast(pyds.get_ptr(data), ctypes.POINTER(ctypes.c_float))
+                box_vector = np.ctypeslib.as_array(box_ptr, shape=(1000, ))
+                print(box_vector[:10])
+                print(np.argmax(box_vector))
             try: 
-                l_obj=l_obj.next
+                l_user = l_user.next
             except StopIteration:
                 break
 
-        pyds.nvds_add_display_meta_to_frame(frame_meta, display_meta)
         try:
             l_frame=l_frame.next
+            frame_meta.bInferDone = True
         except StopIteration:
             break
 			
@@ -220,11 +243,11 @@ def main(args):
     if not nvvidconv:
         sys.stderr.write(" Unable to create nvvidconv \n")
 
-    # Create OSD to draw on the converted RGBA buffer
-    nvosd = Gst.ElementFactory.make("nvdsosd", "onscreendisplay")
+    # # Create OSD to draw on the converted RGBA buffer
+    # nvosd = Gst.ElementFactory.make("nvdsosd", "onscreendisplay")
 
-    if not nvosd:
-        sys.stderr.write(" Unable to create nvosd \n")
+    # if not nvosd:
+    #     sys.stderr.write(" Unable to create nvosd \n")
 
     # Finally render the osd output
     if is_aarch64():
@@ -250,7 +273,7 @@ def main(args):
     pipeline.add(streammux)
     pipeline.add(pgie)
     pipeline.add(nvvidconv)
-    pipeline.add(nvosd)
+    # pipeline.add(nvosd)
     pipeline.add(sink)
     if is_aarch64():
         pipeline.add(transform)
@@ -271,13 +294,13 @@ def main(args):
     srcpad.link(sinkpad)
     streammux.link(pgie)
     pgie.link(nvvidconv)
-    nvvidconv.link(nvosd)
-    if is_aarch64():
-        nvosd.link(transform)
-        transform.link(sink)
-    else:
-        nvosd.link(sink)
-
+    # nvvidconv.link(nvosd)
+    # if is_aarch64():
+    #     nvosd.link(transform)
+    #     transform.link(sink)
+    # else:
+    #     nvosd.link(sink)
+    pgie.link(sink)
     # create an event loop and feed gstreamer bus mesages to it
     loop = GLib.MainLoop()
     bus = pipeline.get_bus()
@@ -291,14 +314,14 @@ def main(args):
 
     pgiesrcpad.add_probe(Gst.PadProbeType.BUFFER, pgie_src_pad_buffer_probe, 0)
 
-    # Lets add probe to get informed of the meta data generated, we add probe to
-    # the sink pad of the osd element, since by that time, the buffer would have
-    # had got all the metadata.
-    osdsinkpad = nvosd.get_static_pad("sink")
-    if not osdsinkpad:
-        sys.stderr.write(" Unable to get sink pad of nvosd \n")
+    # # Lets add probe to get informed of the meta data generated, we add probe to
+    # # the sink pad of the osd element, since by that time, the buffer would have
+    # # had got all the metadata.
+    # osdsinkpad = nvosd.get_static_pad("sink")
+    # if not osdsinkpad:
+    #     sys.stderr.write(" Unable to get sink pad of nvosd \n")
 
-    osdsinkpad.add_probe(Gst.PadProbeType.BUFFER, osd_sink_pad_buffer_probe, 0)
+    # osdsinkpad.add_probe(Gst.PadProbeType.BUFFER, osd_sink_pad_buffer_probe, 0)
 
     # start play back and listen to events
     print("Starting pipeline \n")
