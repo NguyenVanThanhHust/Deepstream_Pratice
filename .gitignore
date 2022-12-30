@@ -3,6 +3,8 @@
 *.wts
 *.pth
 *.onnx
+*.h264
+*.o
 
 # runfile
 deepstream-app
